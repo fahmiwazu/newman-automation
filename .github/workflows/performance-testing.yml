@@ -2,7 +2,7 @@ name: API Performance Testing
 
 on:
   push:
-    branches:  main # [ main, develop ]
+    branches: [ main , master ] # [ main, develop ]
   # pull_request:
   #   branches: [ main ]
   # schedule:
