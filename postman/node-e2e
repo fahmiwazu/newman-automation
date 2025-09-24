@@ -1,0 +1,175 @@
+{
+	"info": {
+		"_postman_id": "10bfa722-e811-4c47-be87-b482570ab2a7",
+		"name": "NODE-E2E",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "36196810",
+		"_collection_link": "https://www.postman.com/fahmi-wiradika/workspace/node-api/collection/36196810-10bfa722-e811-4c47-be87-b482570ab2a7?action=share&source=collection_link&creator=36196810"
+	},
+	"item": [
+		{
+			"name": "Create Product by JSON E2E",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Parse the response JSON\r",
+							"const responseJson = pm.response.json();\r",
+							"\r",
+							"// Store the _id value as productID in environment variables\r",
+							"pm.environment.set(\"productID\", responseJson._id);\r",
+							"pm.environment.set(\"productName\", responseJson.name);\r",
+							"// Optional: Log the stored value to console for verification\r",
+							"console.log(\"Product ID stored:\", responseJson._id);\r",
+							"\r",
+							"// Optional: Add a test to verify the response contains _id\r",
+							"pm.test(\"Response contains _id\", function () {\r",
+							"    pm.expect(responseJson).to.have.property('_id');\r",
+							"    pm.expect(responseJson._id).to.be.a('string');\r",
+							"});\r",
+							"\r",
+							"// Optional: Add a test to verify the product was created successfully\r",
+							"pm.test(\"Product created successfully\", function () {\r",
+							"    pm.response.to.have.status(200); // or 201 if your API returns 201 for creation\r",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Get values from environment variables\r",
+							"const name = pm.environment.get(\"productName\");\r",
+							"const quantity = pm.environment.get(\"productQuantity\");\r",
+							"const price = pm.environment.get(\"productPrice\");"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"name\": \"{{productName}}\",\r\n\t\"quantity\": {{productQuantity}},\r\n\t\"price\": {{productPrice}}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/products",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"products"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Product by ID E2E",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const name = pm.environment.get(\"productID\");"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/products/{{productID}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"{{productID}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Product E2E",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"const name = pm.environment.get(\"productID\");"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n\t\"name\":\"Martabak\",\r\n\t\"price\": 38000\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/products/{{productID}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"{{productID}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Prorduct E2E",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/products/{{productID}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"products",
+						"{{productID}}"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

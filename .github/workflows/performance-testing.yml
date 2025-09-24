@@ -1,0 +1,85 @@
+name: API Performance Testing
+
+on:
+  push:
+    branches:  main # [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
+  # schedule:
+  #   # Run performance tests daily at 2 AM UTC
+  #   - cron: '0 2 * * *'
+  # workflow_dispatch: # Allow manual trigger
+
+jobs:
+  api-performance-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm install -g newman
+        npm install -g newman-reporter-htmlextra
+        npm install -g newman-reporter-html
+
+    - name: Create reports directory
+      run: mkdir -p reports
+
+    - name: Run Postman Collection with Performance Testing
+      run: |
+        newman run postman/node-e2e.json \
+          -e postman/waz-warunk.json \
+          -r htmlextra,json,cli \
+          --reporter-htmlextra-export reports/performance-report.html \
+          --reporter-htmlextra-title "API Performance Test Report" \
+          --reporter-htmlextra-titleSize 6 \
+          --reporter-htmlextra-logs \
+          --reporter-json-export reports/performance-results.json \
+          --iteration-count 150 \
+          --delay-request 100 \
+          --timeout-request 30000 \
+          --insecure \
+          --color on
+      continue-on-error: true
+
+    # - name: Run Load Testing (Multiple Iterations)
+    #   run: |
+    #     newman run postman/node-e2e.json \
+    #       -e postman/waz-warunk.json \
+    #       -r htmlextra,json \
+    #       --reporter-htmlextra-export reports/load-test-report.html \
+    #       --reporter-htmlextra-title "API Load Test Report - 50 Iterations" \
+    #       --reporter-json-export reports/load-test-results.json \
+    #       --iteration-count 50 \
+    #       --delay-request 50 \
+    #       --timeout-request 15000
+    #   continue-on-error: true
+
+    - name: Generate Performance Summary
+      run: |
+        node scripts/generate-summary.js
+      continue-on-error: true
+
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-test-results
+        path: reports/
+        retention-days: 30
+
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./reports
+        destination_dir: performance-reports
+        keep_files: false
