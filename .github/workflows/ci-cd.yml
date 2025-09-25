@@ -28,23 +28,47 @@ jobs:
       with:
         node-version: '18'
     
-    - name: Install Newman
+    - name: Install Newman and Reporters
       run: |
         npm install -g newman
+        npm install -g newman-reporter-html
         npm install -g newman-reporter-htmlextra
     
     - name: Create reports directory
       run: mkdir -p newman-reports
     
+    - name: Start Test Server (if needed)
+      run: |
+        # If you have a test server, start it here
+        # Example: npm start &
+        # sleep 10
+        echo "Skipping server start - using external API or mock server"
+      continue-on-error: true
+    
     - name: Run Newman Tests
       run: |
-        newman run postman/node-e2e \
-          --environment postman/waz-warunk \
+        # Find the correct collection and environment files
+        COLLECTION=$(find postman -name "*node-e2e*" | head -1)
+        ENVIRONMENT=$(find postman -name "*waz-warunk*" | head -1)
+        
+        if [ -z "$COLLECTION" ] || [ -z "$ENVIRONMENT" ]; then
+          echo "Collection or environment file not found"
+          echo "Available files in postman directory:"
+          ls -la postman/
+          exit 1
+        fi
+        
+        echo "Using collection: $COLLECTION"
+        echo "Using environment: $ENVIRONMENT"
+        
+        newman run "$COLLECTION" \
+          --environment "$ENVIRONMENT" \
           --iteration-count 5 \
-          --reporters cli,html,json,junit \
-          --reporter-html-export newman-reports/newman-report.html \
+          --reporters cli,json,junit \
           --reporter-json-export newman-reports/newman-report.json \
-          --reporter-junit-export newman-reports/newman-report.xml
+          --reporter-junit-export newman-reports/newman-report.xml \
+          --timeout-request 30000 \
+          --delay-request 1000
       continue-on-error: true
     
     - name: Upload Newman Reports
@@ -65,7 +89,7 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     needs: test
-    if: always()
+    if: always() && github.ref == 'refs/heads/main'
     
     environment:
       name: github-pages
@@ -74,6 +98,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        ref: main
     
     - name: Check if performance report exists
       id: check-performance
@@ -99,26 +125,35 @@ jobs:
         if [ -d "performance/assets" ]; then
           cp -r performance/assets _site/
         fi
-        # Create a simple navigation if other reports exist
-        if [ -d "reports" ]; then
-          echo "<p><a href='#'>Performance Report</a> | <a href='reports/'>Other Reports</a></p>" > temp_nav.html
-          cat _site/index.html >> temp_nav.html
-          mv temp_nav.html _site/index.html
-        fi
+        # Add basic styling if missing
+        echo "<style>body{font-family:Arial,sans-serif;margin:40px;}</style>" > temp_style.html
+        cat _site/index.html >> temp_style.html
+        mv temp_style.html _site/index.html
     
-    - name: Upload artifact (with performance report)
-      if: steps.check-performance.outputs.performance_exists == 'true'
+    - name: Create simple index if no performance report
+      if: steps.check-performance.outputs.performance_exists == 'false'
+      run: |
+        mkdir -p _site
+        cat > _site/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Test Results</title>
+            <style>body{font-family:Arial,sans-serif;margin:40px;}</style>
+        </head>
+        <body>
+            <h1>API Test Results</h1>
+            <p>No performance report available yet.</p>
+            <p>Add <code>performance/performance-report.html</code> to enable performance reporting.</p>
+        </body>
+        </html>
+        EOF
+    
+    - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
         path: '_site'
     
-    - name: Deploy to GitHub Pages (with performance report)
-      if: steps.check-performance.outputs.performance_exists == 'true'
+    - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
-    
-    - name: Skip deployment (no performance report)
-      if: steps.check-performance.outputs.performance_exists == 'false'
-      run: |
-        echo "No performance report found. Keeping current GitHub Pages deployment."
-        echo "To deploy a new performance report, add performance-report.html to the performance/ directory."
