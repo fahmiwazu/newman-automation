@@ -1,0 +1,128 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Run Newman Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install Newman
+      run: |
+        npm install -g newman
+        npm install -g newman-reporter-htmlextra
+    
+    - name: Create reports directory
+      run: mkdir -p newman-reports
+    
+    - name: Run Newman Tests
+      run: |
+        newman run postman/node-e2e \
+          --environment postman/waz-warunk \
+          --iteration-count 5 \
+          --reporters cli,html,json,junit \
+          --reporter-html-export newman-reports/newman-report.html \
+          --reporter-json-export newman-reports/newman-report.json \
+          --reporter-junit-export newman-reports/newman-report.xml \
+          --reporter-cli-no-summary \
+          --reporter-cli-no-failures \
+          --reporter-cli-no-assertions
+      continue-on-error: true
+    
+    - name: Upload Newman Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: newman-test-reports
+        path: newman-reports/
+        retention-days: 30
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: newman-reports/newman-report.xml
+
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: test
+    if: always()
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Check if performance report exists
+      id: check-performance
+      run: |
+        if [ -f "performance/performance-report.html" ]; then
+          echo "performance_exists=true" >> $GITHUB_OUTPUT
+          echo "Performance report found"
+        else
+          echo "performance_exists=false" >> $GITHUB_OUTPUT
+          echo "Performance report not found"
+        fi
+    
+    - name: Setup Pages (with performance report)
+      if: steps.check-performance.outputs.performance_exists == 'true'
+      uses: actions/configure-pages@v4
+    
+    - name: Create pages directory and copy performance report
+      if: steps.check-performance.outputs.performance_exists == 'true'
+      run: |
+        mkdir -p _site
+        cp performance/performance-report.html _site/index.html
+        # Copy any additional assets if they exist
+        if [ -d "performance/assets" ]; then
+          cp -r performance/assets _site/
+        fi
+        # Create a simple navigation if other reports exist
+        if [ -d "reports" ]; then
+          echo "<p><a href='#'>Performance Report</a> | <a href='reports/'>Other Reports</a></p>" > temp_nav.html
+          cat _site/index.html >> temp_nav.html
+          mv temp_nav.html _site/index.html
+        fi
+    
+    - name: Upload artifact (with performance report)
+      if: steps.check-performance.outputs.performance_exists == 'true'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '_site'
+    
+    - name: Deploy to GitHub Pages (with performance report)
+      if: steps.check-performance.outputs.performance_exists == 'true'
+      id: deployment
+      uses: actions/deploy-pages@v4
+    
+    - name: Skip deployment (no performance report)
+      if: steps.check-performance.outputs.performance_exists == 'false'
+      run: |
+        echo "No performance report found. Keeping current GitHub Pages deployment."
+        echo "To deploy a new performance report, add performance-report.html to the performance/ directory."
