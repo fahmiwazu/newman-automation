@@ -27,7 +27,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
     
     - name: Install Newman
       run: |
@@ -45,10 +44,7 @@ jobs:
           --reporters cli,html,json,junit \
           --reporter-html-export newman-reports/newman-report.html \
           --reporter-json-export newman-reports/newman-report.json \
-          --reporter-junit-export newman-reports/newman-report.xml \
-          --reporter-cli-no-summary \
-          --reporter-cli-no-failures \
-          --reporter-cli-no-assertions
+          --reporter-junit-export newman-reports/newman-report.xml
       continue-on-error: true
     
     - name: Upload Newman Reports
