@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: master
   workflow_dispatch:
 
 permissions:
@@ -48,8 +48,8 @@ jobs:
     - name: Run Newman Tests
       run: |
         # Find the correct collection and environment files
-        COLLECTION=$(find postman -name "*node-e2e*" | head -1)
-        ENVIRONMENT=$(find postman -name "*waz-warunk*" | head -1)
+        COLLECTION=$(find postman -name "*node-e2e.json*" | head -1)
+        ENVIRONMENT=$(find postman -name "*waz-warunk.json*" | head -1)
         
         if [ -z "$COLLECTION" ] || [ -z "$ENVIRONMENT" ]; then
           echo "Collection or environment file not found"
@@ -89,7 +89,7 @@ jobs:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
     needs: test
-    if: always() && github.ref == 'refs/heads/main'
+    if: always() && github.ref == 'refs/heads/master'
     
     environment:
       name: github-pages
@@ -99,7 +99,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        ref: main
+        ref: master
     
     - name: Check if performance report exists
       id: check-performance
