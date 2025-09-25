@@ -4,8 +4,8 @@ echo ================================
 
 REM Set base paths
 set BASE_DIR=C:\Fahmi\Repository\Performance\Postman\fahmi\
-set NEWMAN_COLLECTION=%BASE_DIR%\postman\node-e2e
-set NEWMAN_ENVIRONMENT=%BASE_DIR%\postman\waz-warunk
+set NEWMAN_COLLECTION=%BASE_DIR%\postman\NODE-E2E.postman_collection.json
+set NEWMAN_ENVIRONMENT=%BASE_DIR%\postman\prod-env.postman_environment.json
 set REPORT_DIR=%BASE_DIR%\reports
 
 REM Create reports directory if it doesn't exist
