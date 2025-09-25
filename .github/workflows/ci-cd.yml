@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true  # Changed to true to cancel previous deployments
 
 jobs:
   test:
@@ -74,7 +74,7 @@ jobs:
     - name: Upload Newman Reports
       uses: actions/upload-artifact@v4
       with:
-        name: newman-test-reports
+        name: newman-test-reports-${{ github.run_number }}  # Added unique suffix
         path: newman-reports/
         retention-days: 30
     
@@ -82,7 +82,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results
+        name: test-results-${{ github.run_number }}  # Added unique suffix
         path: newman-reports/newman-report.xml
 
   deploy-pages:
@@ -101,6 +101,12 @@ jobs:
       with:
         ref: master
     
+    # Clean up any existing artifacts first
+    - name: Clean workspace
+      run: |
+        rm -rf _site
+        rm -rf .github-pages-artifact
+    
     - name: Check if performance report exists
       id: check-performance
       run: |
@@ -112,8 +118,7 @@ jobs:
           echo "Performance report not found"
         fi
     
-    - name: Setup Pages (with performance report)
-      if: steps.check-performance.outputs.performance_exists == 'true'
+    - name: Setup Pages
       uses: actions/configure-pages@v4
     
     - name: Create pages directory and copy performance report
@@ -149,10 +154,11 @@ jobs:
         </html>
         EOF
     
-    - name: Upload artifact
+    - name: Upload pages artifact
       uses: actions/upload-pages-artifact@v3
       with:
         path: '_site'
+        name: github-pages  # Explicitly set the artifact name
     
     - name: Deploy to GitHub Pages
       id: deployment
