@@ -48,8 +48,8 @@ jobs:
     - name: Run Newman Tests
       run: |
         # Find the correct collection and environment files
-        COLLECTION=$(find postman -name "*node-e2e.json*" | head -1)
-        ENVIRONMENT=$(find postman -name "*waz-warunk.json*" | head -1)
+        COLLECTION=$(find postman -name "*NODE-E2E.postman_collection.json*" | head -1)
+        ENVIRONMENT=$(find postman -name "*prod-env.postman_environment.json*" | head -1)
         
         if [ -z "$COLLECTION" ] || [ -z "$ENVIRONMENT" ]; then
           echo "Collection or environment file not found"
