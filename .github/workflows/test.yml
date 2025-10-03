@@ -1,0 +1,75 @@
+name: Newman API Tests
+
+on:
+  push:
+    branches: 
+      - master
+  schedule:
+    - cron: '0 17 * * *'  # Run at 00:00:00 UTC+7 (17:00 UTC) every day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Newman Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install Newman and Reporters
+      run: |
+        npm install -g newman
+        npm install -g newman-reporter-html
+        npm install -g newman-reporter-htmlextra
+    
+    - name: Create reports directory
+      run: mkdir -p newman-reports
+    
+    - name: Run Newman Tests
+      run: |
+        # Find the correct collection and environment files
+        COLLECTION=$(find postman -name "*NODE-E2E.postman_collection.json*" | head -1)
+        ENVIRONMENT=$(find postman -name "*prod-env.postman_environment.json*" | head -1)
+        
+        if [ -z "$COLLECTION" ] || [ -z "$ENVIRONMENT" ]; then
+          echo "Collection or environment file not found"
+          echo "Available files in postman directory:"
+          ls -la postman/
+          exit 1
+        fi
+        
+        echo "Using collection: $COLLECTION"
+        echo "Using environment: $ENVIRONMENT"
+        
+        newman run "$COLLECTION" \
+          --environment "$ENVIRONMENT" \
+          --iteration-count 5 \
+          --reporters cli,json,junit \
+          --reporter-json-export newman-reports/newman-report.json \
+          --reporter-junit-export newman-reports/newman-report.xml \
+          --timeout-request 30000 \
+          --delay-request 1000
+      continue-on-error: true
+    
+    - name: Upload Newman Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: newman-test-reports-${{ github.run_number }}
+        path: newman-reports/
+        retention-days: 30
+    
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ github.run_number }}
+        path: newman-reports/newman-report.xml
