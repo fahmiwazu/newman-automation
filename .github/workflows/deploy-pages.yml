@@ -1,0 +1,96 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'performance/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy-pages:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: master
+    
+    - name: Clean workspace
+      run: |
+        rm -rf _site
+        rm -rf .github-pages-artifact
+    
+    - name: Check if performance report exists
+      id: check-performance
+      run: |
+        if [ -f "performance/performance-report.html" ]; then
+          echo "performance_exists=true" >> $GITHUB_OUTPUT
+          echo "Performance report found"
+        else
+          echo "performance_exists=false" >> $GITHUB_OUTPUT
+          echo "Performance report not found"
+        fi
+    
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+    
+    - name: Create pages directory and copy performance report
+      if: steps.check-performance.outputs.performance_exists == 'true'
+      run: |
+        mkdir -p _site
+        cp performance/performance-report.html _site/index.html
+        # Copy any additional assets if they exist
+        if [ -d "performance/assets" ]; then
+          cp -r performance/assets _site/
+        fi
+        # Add basic styling if missing
+        echo "<style>body{font-family:Arial,sans-serif;margin:40px;}</style>" > temp_style.html
+        cat _site/index.html >> temp_style.html
+        mv temp_style.html _site/index.html
+    
+    - name: Create simple index if no performance report
+      if: steps.check-performance.outputs.performance_exists == 'false'
+      run: |
+        mkdir -p _site
+        cat > _site/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Test Results</title>
+            <style>body{font-family:Arial,sans-serif;margin:40px;}</style>
+        </head>
+        <body>
+            <h1>API Test Results</h1>
+            <p>No performance report available yet.</p>
+            <p>Add <code>performance/performance-report.html</code> to enable performance reporting.</p>
+        </body>
+        </html>
+        EOF
+    
+    - name: Upload pages artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: '_site'
+        name: github-pages
+    
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
